@@ -1,0 +1,70 @@
+BCgen
+=====
+
+BCgen is derived from the Zend OPcache source code.
+
+It provides a single function to compile a PHP script into binary bytecode file.
+BCgen is similiar to bcompiler, but not a direct replacement.
+
+Compatibility
+-------------
+
+This version of Zend OPcache is compatible with PHP 5.2.*, 5.3.*, 5.4.*
+and PHP-5.5 development branch.  PHP 5.2 support may be removed in the future.
+
+Quick Install
+-------------
+
+- Compile
+
+ $PHP_DIR/bin/phpize
+ ./configure \
+      --with-php-config=$PHP_DIR/bin/php-config
+ make
+
+- Install
+
+ make install # this will copy bcgen.so into PHP extension directory
+
+- Edit php.ini
+
+ zend_extension=/...full path.../bcgen.so
+
+NOTE: In case you are going to use BCgen together with Xdebug or Zend Debugger,
+be sure that the debugger is loaded after BCgen. "php -v" must show the debugger
+after BCgen.
+
+- Restart PHP
+
+Configuration Directives
+------------------------
+
+bcgen.enable (default "1")
+	BCgen On/Off switch. When set to Off, bytecode files cannot be read
+
+bcgen.save_comments (default "1")
+	If disabled, all PHPDoc comments are dropped from the code to reduce the
+	size of the optimized code. Disabling "Doc Comments" may break some
+	existing applications and frameworks (e.g. Doctrine, ZF2, PHPUnit)
+
+bcgen.optimization_level (default "0xffffffff")
+	A bitmask, where each bit enables or disables the appropriate BCgen
+	passes
+
+bcgen.dups_fix (default "0")
+	Enable this hack as a workaround for "Cannot redeclare class" errors.
+
+bcgen.file_consistency_checks (default "0")
+	Check the file checksum on each request.
+	The default value of "0" means that the check is disabled.
+	Because calculating the checksum impairs performance, this directive should
+	be enabled only as part of a debugging process.
+
+bcgen.error_log
+	BCgen error_log file name. Empty string assumes "stderr".
+
+bcgen.log_verbosity_level (default "1")
+	All BCgen errors go to the Web server log.
+	By default, only fatal errors (level 0) or errors (level 1) are logged.
+	You can also enable warnings (level 2), info messages (level 3) or
+	debug messages (level 4).
