@@ -85,6 +85,7 @@ ZEND_INI_BEGIN()
 	STD_PHP_INI_BOOLEAN("bcgen.dups_fix"           , "0", PHP_INI_ALL   , OnUpdateBool, accel_directives.ignore_dups        , zend_accel_globals, accel_globals)
 
 	STD_PHP_INI_ENTRY("bcgen.log_verbosity_level"   , "1"   , PHP_INI_SYSTEM, OnUpdateLong, accel_directives.log_verbosity_level,       zend_accel_globals, accel_globals)
+	STD_PHP_INI_ENTRY("bcgen.consistency_checks"    , "0"   , PHP_INI_ALL   , OnUpdateLong,	             accel_directives.consistency_checks,        zend_accel_globals, accel_globals)
 
 	STD_PHP_INI_ENTRY("bcgen.save_comments"         , "1"  , PHP_INI_SYSTEM, OnUpdateBool,                  accel_directives.save_comments,             zend_accel_globals, accel_globals)
 

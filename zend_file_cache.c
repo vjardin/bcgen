@@ -79,8 +79,8 @@
 				(ptr) = zend_file_cache_serialize_interned((zend_string*)(ptr), info); \
 			} else { \
 				ZEND_ASSERT(IS_UNSERIALIZED(ptr)); \
-				GC_FLAGS(ptr) |= IS_STR_INTERNED; \
-				GC_FLAGS(ptr) &= ~IS_STR_PERMANENT; \
+                GC_ADD_FLAGS(ptr, IS_STR_INTERNED); \
+                GC_DEL_FLAGS(ptr, IS_STR_PERMANENT); \
 				(ptr) = (void*)((char*)(ptr) - (char*)script->mem); \
 			} \
 		} \
@@ -92,14 +92,14 @@
 			} else { \
 				ZEND_ASSERT(IS_SERIALIZED(ptr)); \
 				(ptr) = (void*)((char*)buf + (size_t)(ptr)); \
-				GC_FLAGS(ptr) |= IS_STR_INTERNED; \
-				GC_FLAGS(ptr) &= ~IS_STR_PERMANENT; \
+                GC_ADD_FLAGS(ptr, IS_STR_INTERNED); \
+				GC_DEL_FLAGS(ptr, IS_STR_PERMANENT); \
 			} \
 		} \
 	} while (0)
 
 static const uint32_t uninitialized_bucket[-HT_MIN_MASK] =
-	{HT_INVALID_IDX, HT_INVALID_IDX};
+    {HT_INVALID_IDX, HT_INVALID_IDX};
 
 typedef struct _zend_file_cache_metainfo {
 	char         magic[8];
@@ -160,8 +160,8 @@ static void *zend_file_cache_unserialize_interned(zend_string *str)
 
 	str = (zend_string*)((char*)ZCG(mem) + ((size_t)(str) & ~Z_UL(1)));
     ret = str;
-	GC_FLAGS(ret) |= IS_STR_INTERNED;
-	GC_FLAGS(ret) &= ~IS_STR_PERMANENT;
+    GC_ADD_FLAGS(ret, IS_STR_INTERNED);
+    GC_DEL_FLAGS(ret, IS_STR_PERMANENT);
 	return ret;
 }
 
@@ -173,7 +173,7 @@ static void zend_file_cache_serialize_hash(HashTable                *ht,
 {
 	Bucket *p, *end;
 
-	if (!(ht->u.flags & HASH_FLAG_INITIALIZED)) {
+	if (!(HT_FLAGS(ht) & HASH_FLAG_INITIALIZED)) {
 		ht->arData = NULL;
 		return;
 	}
@@ -193,36 +193,37 @@ static void zend_file_cache_serialize_hash(HashTable                *ht,
 	}
 }
 
-static zend_ast *zend_file_cache_serialize_ast(zend_ast                 *ast,
-                                               zend_persistent_script   *script,
-                                               zend_file_cache_metainfo *info,
-                                               void                     *buf)
+static void zend_file_cache_serialize_ast(zend_ast                 *ast,
+                                          zend_persistent_script   *script,
+                                          zend_file_cache_metainfo *info,
+                                          void                     *buf)
 {
 	uint32_t i;
-	zend_ast *ret;
+	zend_ast *tmp;
 
-	SERIALIZE_PTR(ast);
-	ret = ast;
-	UNSERIALIZE_PTR(ast);
-
-	if (ast->kind == ZEND_AST_ZVAL) {
+	if (ast->kind == ZEND_AST_ZVAL || ast->kind == ZEND_AST_CONSTANT) {
 		zend_file_cache_serialize_zval(&((zend_ast_zval*)ast)->val, script, info, buf);
 	} else if (zend_ast_is_list(ast)) {
 		zend_ast_list *list = zend_ast_get_list(ast);
 		for (i = 0; i < list->children; i++) {
-			if (list->child[i]) {
-				list->child[i] = zend_file_cache_serialize_ast(list->child[i], script, info, buf);
+			if (list->child[i] && !IS_SERIALIZED(list->child[i])) {
+				SERIALIZE_PTR(list->child[i]);
+				tmp = list->child[i];
+				UNSERIALIZE_PTR(tmp);
+				zend_file_cache_serialize_ast(tmp, script, info, buf);
 			}
 		}
 	} else {
 		uint32_t children = zend_ast_get_num_children(ast);
 		for (i = 0; i < children; i++) {
-			if (ast->child[i]) {
-				ast->child[i] = zend_file_cache_serialize_ast(ast->child[i], script, info, buf);
+			if (ast->child[i] && !IS_SERIALIZED(ast->child[i])) {
+				SERIALIZE_PTR(ast->child[i]);
+				tmp = ast->child[i];
+				UNSERIALIZE_PTR(tmp);
+				zend_file_cache_serialize_ast(tmp, script, info, buf);
 			}
 		}
 	}
-	return ret;
 }
 
 static void zend_file_cache_serialize_zval(zval                     *zv,
@@ -232,7 +233,6 @@ static void zend_file_cache_serialize_zval(zval                     *zv,
 {
 	switch (Z_TYPE_P(zv)) {
 		case IS_STRING:
-		case IS_CONSTANT:
 			if (!IS_SERIALIZED(Z_STR_P(zv))) {
 				SERIALIZE_STR(Z_STR_P(zv));
 			}
@@ -264,9 +264,7 @@ static void zend_file_cache_serialize_zval(zval                     *zv,
 				SERIALIZE_PTR(Z_AST_P(zv));
 				ast = Z_AST_P(zv);
 				UNSERIALIZE_PTR(ast);
-				if (!IS_SERIALIZED(ast->ast)) {
-					ast->ast = zend_file_cache_serialize_ast(ast->ast, script, info, buf);
-				}
+				zend_file_cache_serialize_ast(GC_AST(ast), script, info, buf);
 			}
 			break;
 	}
@@ -321,6 +319,11 @@ static void zend_file_cache_serialize_op_array(zend_op_array            *op_arra
 	if (!IS_SERIALIZED(op_array->opcodes)) {
 		zend_op *opline, *end;
 
+#if !ZEND_USE_ABS_CONST_ADDR
+		zval *literals = op_array->literals;
+		UNSERIALIZE_PTR(literals);
+#endif
+
 		SERIALIZE_PTR(op_array->opcodes);
 		opline = op_array->opcodes;
 		UNSERIALIZE_PTR(opline);
@@ -332,6 +335,13 @@ static void zend_file_cache_serialize_op_array(zend_op_array            *op_arra
 			}
 			if (opline->op2_type == IS_CONST) {
 				SERIALIZE_PTR(opline->op2.zv);
+			}
+#else
+			if (opline->op1_type == IS_CONST) {
+				opline->op1.constant = RT_CONSTANT(opline, opline->op1) - literals;
+			}
+			if (opline->op2_type == IS_CONST) {
+				opline->op2.constant = RT_CONSTANT(opline, opline->op2) - literals;
 			}
 #endif
 #if ZEND_USE_ABS_JMP_ADDR
@@ -353,6 +363,11 @@ static void zend_file_cache_serialize_op_array(zend_op_array            *op_arra
 				case ZEND_FE_RESET_RW:
 				case ZEND_ASSERT_CHECK:
 					SERIALIZE_PTR(opline->op2.jmp_addr);
+					break;
+				case ZEND_CATCH:
+					if (!(opline->extended_value & ZEND_LAST_CATCH)) {
+						SERIALIZE_PTR(opline->op2.jmp_addr);
+					}
 					break;
 				case ZEND_DECLARE_ANON_CLASS:
 				case ZEND_DECLARE_ANON_INHERITED_CLASS:
@@ -674,7 +689,7 @@ int zend_file_cache_script_store(zend_persistent_script *script)
 		return FAILURE;
 	}
 
-#ifdef __SSE2__
+#if defined(__AVX__) || defined(__SSE2__)
 	/* Align to 64-byte boundary */
 	mem = emalloc(script->size + 64);
 	buf = (void*)(((zend_uintptr_t)mem + 63L) & ~63L);
@@ -741,7 +756,7 @@ static void zend_file_cache_unserialize_hash(HashTable               *ht,
 	Bucket *p, *end;
 
 	ht->pDestructor = dtor;
-	if (!(ht->u.flags & HASH_FLAG_INITIALIZED)) {
+	if (!(HT_FLAGS(ht) & HASH_FLAG_INITIALIZED)) {
 		HT_SET_DATA_ADDR(ht, &uninitialized_bucket);
 		return;
 	}
@@ -760,32 +775,31 @@ static void zend_file_cache_unserialize_hash(HashTable               *ht,
 	}
 }
 
-static zend_ast *zend_file_cache_unserialize_ast(zend_ast                *ast,
-                                                 zend_persistent_script  *script,
-                                                 void                    *buf)
+static void zend_file_cache_unserialize_ast(zend_ast                *ast,
+                                            zend_persistent_script  *script,
+                                            void                    *buf)
 {
 	uint32_t i;
 
-	UNSERIALIZE_PTR(ast);
-
-	if (ast->kind == ZEND_AST_ZVAL) {
+	if (ast->kind == ZEND_AST_ZVAL || ast->kind == ZEND_AST_CONSTANT) {
 		zend_file_cache_unserialize_zval(&((zend_ast_zval*)ast)->val, script, buf);
 	} else if (zend_ast_is_list(ast)) {
 		zend_ast_list *list = zend_ast_get_list(ast);
 		for (i = 0; i < list->children; i++) {
-			if (list->child[i]) {
-				list->child[i] = zend_file_cache_unserialize_ast(list->child[i], script, buf);
+			if (list->child[i] && !IS_UNSERIALIZED(list->child[i])) {
+				UNSERIALIZE_PTR(list->child[i]);
+				zend_file_cache_unserialize_ast(list->child[i], script, buf);
 			}
 		}
 	} else {
 		uint32_t children = zend_ast_get_num_children(ast);
 		for (i = 0; i < children; i++) {
-			if (ast->child[i]) {
-				ast->child[i] = zend_file_cache_unserialize_ast(ast->child[i], script, buf);
+			if (ast->child[i] && !IS_UNSERIALIZED(ast->child[i])) {
+				UNSERIALIZE_PTR(ast->child[i]);
+				zend_file_cache_unserialize_ast(ast->child[i], script, buf);
 			}
 		}
 	}
-	return ast;
 }
 
 static void zend_file_cache_unserialize_zval(zval                    *zv,
@@ -794,7 +808,6 @@ static void zend_file_cache_unserialize_zval(zval                    *zv,
 {
 	switch (Z_TYPE_P(zv)) {
 		case IS_STRING:
-		case IS_CONSTANT:
 			if (!IS_UNSERIALIZED(Z_STR_P(zv))) {
 				UNSERIALIZE_STR(Z_STR_P(zv));
 			}
@@ -820,13 +833,8 @@ static void zend_file_cache_unserialize_zval(zval                    *zv,
 			break;
 		case IS_CONSTANT_AST:
 			if (!IS_UNSERIALIZED(Z_AST_P(zv))) {
-				zend_ast_ref *ast;
-
 				UNSERIALIZE_PTR(Z_AST_P(zv));
-				ast = Z_AST_P(zv);
-				if (!IS_UNSERIALIZED(ast->ast)) {
-					ast->ast = zend_file_cache_unserialize_ast(ast->ast, script, buf);
-				}
+				zend_file_cache_unserialize_ast(Z_ASTVAL_P(zv), script, buf);
 			}
 			break;
 	}
@@ -880,15 +888,22 @@ static void zend_file_cache_unserialize_op_array(zend_op_array           *op_arr
 		opline = op_array->opcodes;
 		end = opline + op_array->last;
 		while (opline < end) {
-# if ZEND_USE_ABS_CONST_ADDR
+#if ZEND_USE_ABS_CONST_ADDR
 			if (opline->op1_type == IS_CONST) {
 				UNSERIALIZE_PTR(opline->op1.zv);
 			}
 			if (opline->op2_type == IS_CONST) {
 				UNSERIALIZE_PTR(opline->op2.zv);
 			}
-# endif
-# if ZEND_USE_ABS_JMP_ADDR
+#else
+			if (opline->op1_type == IS_CONST) {
+				ZEND_PASS_TWO_UPDATE_CONSTANT(op_array, opline, opline->op1);
+			}
+			if (opline->op2_type == IS_CONST) {
+				ZEND_PASS_TWO_UPDATE_CONSTANT(op_array, opline, opline->op2);
+			}
+#endif
+#if ZEND_USE_ABS_JMP_ADDR
 			switch (opline->opcode) {
 				case ZEND_JMP:
 				case ZEND_FAST_CALL:
@@ -908,6 +923,11 @@ static void zend_file_cache_unserialize_op_array(zend_op_array           *op_arr
 				case ZEND_ASSERT_CHECK:
 					UNSERIALIZE_PTR(opline->op2.jmp_addr);
 					break;
+				case ZEND_CATCH:
+					if (!(opline->extended_value & ZEND_LAST_CATCH)) {
+						UNSERIALIZE_PTR(opline->op2.jmp_addr);
+					}
+					break;
 				case ZEND_DECLARE_ANON_CLASS:
 				case ZEND_DECLARE_ANON_INHERITED_CLASS:
 				case ZEND_FE_FETCH_R:
@@ -917,7 +937,7 @@ static void zend_file_cache_unserialize_op_array(zend_op_array           *op_arr
 					/* relative extended_value don't have to be changed */
 					break;
 			}
-# endif
+#endif
 			zend_deserialize_opcode_handler(opline);
 			opline++;
 		}
@@ -1223,7 +1243,7 @@ zend_persistent_script *zend_file_cache_script_load(zend_file_handle *file_handl
 	}
 
 	checkpoint = zend_arena_checkpoint(CG(arena));
-#ifdef __SSE2__
+#if defined(__AVX__) || defined(__SSE2__)
 	/* Align to 64-byte boundary */
 	mem = zend_arena_alloc(&CG(arena), info.mem_size + info.str_size + 64);
 	mem = (void*)(((zend_uintptr_t)mem + 63L) & ~63L);

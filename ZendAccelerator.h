@@ -63,7 +63,7 @@
 #endif
 
 #ifndef ZEND_EXT_API
-# if WIN32|WINNT
+# ifdef ZEND_WIN32
 #  define ZEND_EXT_API __declspec(dllexport)
 # elif defined(__GNUC__) && __GNUC__ >= 4
 #  define ZEND_EXT_API __attribute__ ((visibility("default")))
@@ -136,15 +136,21 @@ typedef struct _zend_accel_globals {
 	zend_persistent_script *current_persistent_script;
 } zend_accel_globals;
 
+typedef struct _zend_string_table {
+	uint32_t     nTableMask;
+	uint32_t     nNumOfElements;
+	zend_string *start;
+	zend_string *top;
+	zend_string *end;
+	zend_string *saved_top;
+} zend_string_table;
+
 typedef struct _zend_accel_shared_globals {
-	/* Interned Strings Support */
-	char           *interned_strings_start;
-	char           *interned_strings_top;
-	char           *interned_strings_end;
-	char           *interned_strings_saved_top;
-	HashTable       interned_strings;
 	/* uninitialized HashTable Support */
 	uint32_t uninitialized_bucket[-HT_MIN_MASK];
+
+	/* Interned Strings Support (must be the last element) */
+	zend_string_table interned_strings;
 } zend_accel_shared_globals;
 
 extern zend_bool accel_startup_ok;
@@ -172,6 +178,6 @@ zend_op_array *persistent_load_file(zend_file_handle *file_handle, int type);
 void persistent_compile_file(zend_file_handle *file_handle, int type);
 
 #define IS_ACCEL_INTERNED(str) \
-	((char*)(str) >= ZCSG(interned_strings_start) && (char*)(str) < ZCSG(interned_strings_end))
+	((char*)(str) >= (char*)ZCSG(interned_strings).start && (char*)(str) < (char*)ZCSG(interned_strings).top)
 
 #endif /* ZEND_ACCELERATOR_H */
