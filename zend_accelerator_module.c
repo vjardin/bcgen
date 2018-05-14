@@ -178,8 +178,9 @@ static ZEND_FUNCTION(bcgen_compile_file)
 		RETURN_FALSE;
 	}
 
-    ZCG(outfilename) = emalloc(outscript_name_len);
+    ZCG(outfilename) = emalloc(outscript_name_len + 1);
     memcpy(ZCG(outfilename), outscript_name, outscript_name_len);
+    ZCG(outfilename)[outscript_name_len + 1] = "\0";
     
 	handle.filename = script_name;
 	handle.free_filename = 0;
