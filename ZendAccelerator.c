@@ -343,6 +343,10 @@ zend_op_array *file_cache_compile_file(zend_file_handle *file_handle, int type)
         }
     }
 
+    if (file_handle->opened_path) {
+	    zend_hash_add_empty_element(&EG(included_files), file_handle->opened_path);
+    }
+
     HANDLE_BLOCK_INTERRUPTIONS();
     persistent_script = zend_file_cache_script_load(file_handle);
     HANDLE_UNBLOCK_INTERRUPTIONS();
