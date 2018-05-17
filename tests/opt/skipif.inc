@@ -1,3 +1,3 @@
 <?php
-  if (!extension_loaded('Zend OPcache')) die('skip Zend OPcache extension not available');
+  if (!extension_loaded('Zend BCgen')) die('skip Zend BCgen extension not available');
 ?>
