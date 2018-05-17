@@ -11,7 +11,7 @@ Test for parents with really long filenames.
 ?>
 --FILE--
 <?php
-function __autoload($name) {
+spl_autoload_register(function ($name) {
   switch( $name ) {
     case 'ezcDocumentWikiDokuwikiTokenizerTests':
       require("a42-parent-errors-with-a-really-long-filename-that-causes-issues-and-things.phb");
@@ -21,7 +21,7 @@ function __autoload($name) {
       require("a42-ezctestcase.php");
       break;
   }
-}
+});
 $a = new ezcDocumentWikiDokuwikiTokenizerTests();
 echo get_class($a), "\n";
 exit;
