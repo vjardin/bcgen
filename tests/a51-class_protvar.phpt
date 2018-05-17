@@ -17,14 +17,19 @@ exit;
 --CODE--
 include(dirname(__FILE__)."/a50-class.phb");
 
+try {
 $obj = new SubClass();
 $obj->show();              /* a b c */
 $obj->b = 15;              /* error */
 $obj->show();
+}
+catch(Error $e) {
+    echo "\nFatal error: ", $e->getMessage(), " in ", $e->getFile(), " on line ", $e->getLine(), "\n";
+}
 --EXPECTREGEX--
 a=\[a\] b=\[b\] c=\[c\]
 
-Fatal error: Cannot access protected property SubClass::\$b in .* on line 6
+Fatal error: Cannot access protected property SubClass::\$b in .* on line 7
 --CLEAN--
 <?php
 unlink(dirname(__FILE__).'/a51-class_protvar.phb');
