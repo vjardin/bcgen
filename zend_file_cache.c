@@ -1189,7 +1189,6 @@ zend_persistent_script *zend_file_cache_script_load(zend_file_handle *file_handl
 	filename = emalloc(len + 1);
 	memcpy(filename, ZSTR_VAL(full_path), len);
 	filename[len] = '\0';
-	//filename = zend_file_cache_get_bin_file_path(full_path);
 
 	fd = open(filename, O_RDONLY | O_BINARY);
 	if (fd < 0) {
