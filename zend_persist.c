@@ -81,13 +81,13 @@ static void zend_hash_persist(HashTable *ht, zend_persist_func_t pPersistElement
 	ht->pDestructor = NULL;
 
 	if (!(ht->u.flags & HASH_FLAG_INITIALIZED)) {
-		HT_SET_DATA_ADDR(ht, &ZCSG(uninitialized_bucket));
+		HT_SET_DATA_ADDR(ht, &uninitialized_bucket);
 		return;
 	}
 	if (ht->nNumUsed == 0) {
 		efree(HT_GET_DATA_ADDR(ht));
 		ht->nTableMask = HT_MIN_MASK;
-		HT_SET_DATA_ADDR(ht, &ZCSG(uninitialized_bucket));
+		HT_SET_DATA_ADDR(ht, &uninitialized_bucket);
 		ht->u.flags &= ~HASH_FLAG_INITIALIZED;
 		return;
 	}
@@ -167,13 +167,13 @@ static void zend_hash_persist_immutable(HashTable *ht)
 	ht->pDestructor = NULL;
 
 	if (!(ht->u.flags & HASH_FLAG_INITIALIZED)) {
-		HT_SET_DATA_ADDR(ht, &ZCSG(uninitialized_bucket));
+		HT_SET_DATA_ADDR(ht, &uninitialized_bucket);
 		return;
 	}
 	if (ht->nNumUsed == 0) {
 		efree(HT_GET_DATA_ADDR(ht));
 		ht->nTableMask = HT_MIN_MASK;
-			HT_SET_DATA_ADDR(ht, &ZCSG(uninitialized_bucket));
+			HT_SET_DATA_ADDR(ht, &uninitialized_bucket);
 		ht->u.flags &= ~HASH_FLAG_INITIALIZED;
 		return;
 	}

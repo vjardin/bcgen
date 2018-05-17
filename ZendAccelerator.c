@@ -83,16 +83,12 @@ ZEND_TSRMLS_CACHE_DEFINE()
 #endif
 #endif
 
-/* Points to the structure shared across all PHP processes */
-zend_accel_shared_globals *accel_shared_globals = NULL;
-
 /* true globals, no need for thread safety */
 zend_bool accel_startup_ok = 0;
 static char *zps_failure_reason = NULL;
 char *zps_api_failure_reason = NULL;
 
 static zend_op_array *(*accelerator_orig_compile_file)(zend_file_handle *file_handle, int type);
-static int (*accelerator_orig_zend_stream_open_function)(const char *filename, zend_file_handle *handle );
 
 static void accel_gen_system_id(void);
 
@@ -243,7 +239,7 @@ static zend_persistent_script *bcgen_compile_file(zend_file_handle *file_handle,
 
     /* Try to open file */
     if (file_handle->type == ZEND_HANDLE_FILENAME) {
-        if (accelerator_orig_zend_stream_open_function(file_handle->filename, file_handle) != SUCCESS) {
+        if (zend_stream_open_function(file_handle->filename, file_handle) != SUCCESS) {
             if (type == ZEND_REQUIRE) {
                 zend_message_dispatcher(ZMSG_FAILED_REQUIRE_FOPEN, file_handle->filename);
                 zend_bailout();
@@ -336,7 +332,7 @@ zend_op_array *file_cache_compile_file(zend_file_handle *file_handle, int type)
 
     if (!file_handle->opened_path) {
         if (file_handle->type == ZEND_HANDLE_FILENAME &&
-            accelerator_orig_zend_stream_open_function(file_handle->filename, file_handle) == FAILURE) {
+            zend_stream_open_function(file_handle->filename, file_handle) == FAILURE) {
             if (type == ZEND_REQUIRE) {
                 zend_message_dispatcher(ZMSG_FAILED_REQUIRE_FOPEN, file_handle->filename);
                 zend_bailout();
@@ -386,12 +382,6 @@ void persistent_compile_file(zend_file_handle *file_handle, int type)
         // free_persistent_script(persistent_script, 1);
         // zend_accel_free_user_functions(&ZCG(function_table));        
     }
-}
-
-/* zend_stream_open_function() replacement for PHP 5.3 and above */
-static int persistent_stream_open_function(const char *filename, zend_file_handle *handle)
-{
-    return accelerator_orig_zend_stream_open_function(filename, handle);
 }
 
 static void accel_activate(void)
@@ -694,19 +684,12 @@ static int accel_startup(zend_extension *extension)
 /* End of non-SHM dependent initializations */
 /********************************************/
 
-    accel_shared_globals = calloc(1, sizeof(zend_accel_shared_globals));
-
     /* Init auto-global strings */
     zend_accel_init_auto_globals();
 
     /* Override compiler */
     accelerator_orig_compile_file = zend_compile_file;
     zend_compile_file = persistent_load_file;
-
-    /* Override stream opener function (to eliminate open() call caused by
-     * include/require statements ) */
-    accelerator_orig_zend_stream_open_function = zend_stream_open_function;
-    zend_stream_open_function = persistent_stream_open_function;
 
     accel_startup_ok = 1;
 

@@ -136,21 +136,7 @@ typedef struct _zend_accel_globals {
 	zend_persistent_script *current_persistent_script;
 } zend_accel_globals;
 
-typedef struct _zend_accel_shared_globals {
-	/* Interned Strings Support */
-	char           *interned_strings_start;
-	char           *interned_strings_top;
-	char           *interned_strings_end;
-	char           *interned_strings_saved_top;
-	HashTable       interned_strings;
-	/* uninitialized HashTable Support */
-	uint32_t uninitialized_bucket[-HT_MIN_MASK];
-} zend_accel_shared_globals;
-
 extern zend_bool accel_startup_ok;
-
-extern zend_accel_shared_globals *accel_shared_globals;
-#define ZCSG(element)   (accel_shared_globals->element)
 
 #ifdef ZTS
 # define ZCG(v)	ZEND_TSRMG(accel_globals_id, zend_accel_globals *, v)
@@ -171,7 +157,6 @@ int  accel_post_deactivate(void);
 zend_op_array *persistent_load_file(zend_file_handle *file_handle, int type);
 void persistent_compile_file(zend_file_handle *file_handle, int type);
 
-#define IS_ACCEL_INTERNED(str) \
-	((char*)(str) >= ZCSG(interned_strings_start) && (char*)(str) < ZCSG(interned_strings_end))
+#define IS_ACCEL_INTERNED(str) (0)
 
 #endif /* ZEND_ACCELERATOR_H */

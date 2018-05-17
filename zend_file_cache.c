@@ -625,7 +625,7 @@ static void zend_file_cache_serialize(zend_persistent_script   *script,
 {
 	zend_persistent_script *new_script;
 
-	memcpy(info->magic, "BCGEN", 6);
+	memcpy(info->magic, "BCGEN\0\0\0", 8);
 	memcpy(info->system_id, ZCG(system_id), 32);
 	info->mem_size = script->size;
 	info->str_size = 0;
@@ -647,30 +647,25 @@ static void zend_file_cache_serialize(zend_persistent_script   *script,
 int zend_file_cache_script_store(zend_persistent_script *script)
 {
 	int fd;
-	char *filename;
 	zend_file_cache_metainfo info;
 #ifdef HAVE_SYS_UIO_H
 	struct iovec vec[3];
 #endif
 	void *mem, *buf;
 
-    size_t len;
-	len = strlen(ZCG(outfilename));
-	filename = emalloc(len);
-	memcpy(filename, ZCG(outfilename), len);
-    
-    zend_accel_error(ACCEL_LOG_WARNING, "writing to file '%s'\n", filename);
+	zend_error(E_WARNING, ACCELERATOR_PRODUCT_NAME " len is %d, %s", strlen (ZCG(outfilename)), ZCG(outfilename));
+    zend_accel_error(ACCEL_LOG_WARNING, "writing to file '%s'\n", ZCG(outfilename));
 
 #ifndef ZEND_WIN32
-	fd = open(filename, O_CREAT | O_TRUNC | O_RDWR | O_BINARY, S_IRUSR | S_IWUSR);
+	fd = open(ZCG(outfilename), O_CREAT | O_TRUNC | O_RDWR | O_BINARY, S_IRUSR | S_IWUSR);
 #else
-	fd = open(filename, O_CREAT | O_TRUNC | O_RDWR | O_BINARY, _S_IREAD | _S_IWRITE);
+	fd = open(ZCG(outfilename), O_CREAT | O_TRUNC | O_RDWR | O_BINARY, _S_IREAD | _S_IWRITE);
 #endif
 	if (fd < 0) {
 		if (errno != EEXIST) {
-			zend_accel_error(ACCEL_LOG_WARNING, "bcgen cannot create file '%s'\n", filename);
+			zend_accel_error(ACCEL_LOG_WARNING, "bcgen cannot create file '%s'\n", ZCG(outfilename));
 		}
-		efree(filename);
+		efree(ZCG(outfilename));
 		return FAILURE;
 	}
 
@@ -700,12 +695,12 @@ int zend_file_cache_script_store(zend_persistent_script *script)
 	vec[2].iov_len = info.str_size;
 
 	if (writev(fd, vec, 3) != (ssize_t)(sizeof(info) + script->size + info.str_size)) {
-		zend_accel_error(ACCEL_LOG_WARNING, "bcgen cannot write to file '%s'\n", filename);
+		zend_accel_error(ACCEL_LOG_WARNING, "bcgen cannot write to file '%s'\n", ZCG(outfilename));
 		zend_string_release((zend_string*)ZCG(mem));
 		close(fd);
 		efree(mem);
-		unlink(filename);
-		efree(filename);
+		unlink(ZCG(outfilename));
+		efree(ZCG(outfilename));
 		return FAILURE;
 	}
 #else
@@ -714,12 +709,12 @@ int zend_file_cache_script_store(zend_persistent_script *script)
 		write(fd, buf, script->size) != script->size ||
 		write(fd, ((zend_string*)ZCG(mem))->val, info.str_size) != info.str_size
 		) {
-		zend_accel_error(ACCEL_LOG_WARNING, "bcgen cannot write to file '%s'\n", filename);
+		zend_accel_error(ACCEL_LOG_WARNING, "bcgen cannot write to file '%s'\n", ZCG(outfilename));
 		zend_string_release((zend_string*)ZCG(mem));
 		close(fd);
 		efree(mem);
-		unlink(filename);
-		efree(filename);
+		unlink(ZCG(outfilename));
+		efree(ZCG(outfilename));
 		return FAILURE;
 	}
 #endif
@@ -727,7 +722,7 @@ int zend_file_cache_script_store(zend_persistent_script *script)
 	zend_string_release((zend_string*)ZCG(mem));
 	efree(mem);
 	close(fd);
-	efree(filename);
+	efree(ZCG(outfilename));
 
 	return SUCCESS;
 }
@@ -1191,8 +1186,9 @@ zend_persistent_script *zend_file_cache_script_load(zend_file_handle *file_handl
 
     size_t len;
 	len = ZSTR_LEN(full_path);
-	filename = emalloc(len);
-	memcpy(filename, ZSTR_VAL(full_path), len);    
+	filename = emalloc(len + 1);
+	memcpy(filename, ZSTR_VAL(full_path), len);
+	filename[len] = '\0';
 	//filename = zend_file_cache_get_bin_file_path(full_path);
 
 	fd = open(filename, O_RDONLY | O_BINARY);
@@ -1202,21 +1198,21 @@ zend_persistent_script *zend_file_cache_script_load(zend_file_handle *file_handl
 	}
 
 	if (read(fd, &info, sizeof(info)) != sizeof(info)) {
-		zend_accel_error(ACCEL_LOG_WARNING, "bcgen cannot read from file '%s'\n", filename);
+		zend_accel_error(ACCEL_LOG_DEBUG, "bcgen: '%s' is not a bcgen file (wrong meta info size)\n", filename);
 		close(fd);
 		efree(filename);
 		return NULL;
 	}
 
 	/* verify header */
-	if (memcmp(info.magic, "BCGEN", 6) != 0) {
-		zend_accel_error(ACCEL_LOG_WARNING, "bcgen cannot read from file '%s' (wrong header)\n", filename);
+	if (memcmp(info.magic, "BCGEN\0\0\0", 8) != 0) {
+		zend_accel_error(ACCEL_LOG_DEBUG, "bcgen: '%s' is not a bcgen file (wrong header)\n", filename);
 		close(fd);
 		efree(filename);
 		return NULL;
 	}
 	if (memcmp(info.system_id, ZCG(system_id), 32) != 0) {
-		zend_accel_error(ACCEL_LOG_WARNING, "bcgen cannot read from file '%s' (wrong \"system_id\")\n", filename);
+		zend_accel_error(ACCEL_LOG_DEBUG, "bcgen '%s' is not a bcgen file (wrong \"system_id\")\n", filename);
 		close(fd);
 		efree(filename);
 		return NULL;
@@ -1232,7 +1228,7 @@ zend_persistent_script *zend_file_cache_script_load(zend_file_handle *file_handl
 #endif
 
 	if (read(fd, mem, info.mem_size + info.str_size) != (ssize_t)(info.mem_size + info.str_size)) {
-		zend_accel_error(ACCEL_LOG_WARNING, "bcgen cannot read from file '%s'\n", filename);
+		zend_accel_error(ACCEL_LOG_DEBUG, "bcgen: cannot read from file '%s' (size mismatch)\n", filename);
 		close(fd);
 		zend_arena_release(&CG(arena), checkpoint);
 		efree(filename);
@@ -1243,7 +1239,7 @@ zend_persistent_script *zend_file_cache_script_load(zend_file_handle *file_handl
 	/* verify checksum */
 	if (ZCG(accel_directives).file_consistency_checks &&
 	    zend_adler32(ADLER32_INIT, mem, info.mem_size + info.str_size) != info.checksum) {
-		zend_accel_error(ACCEL_LOG_WARNING, "corrupted file '%s'\n", filename);
+		zend_accel_error(ACCEL_LOG_WARNING, "bcgen: corrupted file '%s' (checksum invalid)\n", filename);
 		zend_arena_release(&CG(arena), checkpoint);
 		efree(filename);
 		return NULL;
