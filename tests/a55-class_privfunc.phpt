@@ -19,12 +19,17 @@ include(dirname(__FILE__)."/a50-class.phb");
 
 $obj = new SubClass();
 $obj->show();              /* a b c */
+try{
 $obj->fail1(10);
 $obj->show();
+}
+catch(Error $e) {
+    echo "\nFatal error: ", $e->getMessage(), " on line ", $e->getLine(), "\n";
+}
 --EXPECTREGEX--
 a=\[a\] b=\[b\] c=\[c\]
 
-Fatal error: Call to private method BaseClass::set\(\) from context 'SubClass' .* on line 17
+Fatal error: Call to private method BaseClass::set\(\) from context 'SubClass' on line 17
 --CLEAN--
 <?php
 unlink(dirname(__FILE__).'/a55-class_privfunc.phb');
