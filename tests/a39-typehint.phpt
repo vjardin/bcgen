@@ -34,15 +34,25 @@ function equity(CAPM $market, $beta, $premium = 0) {
 set_error_handler('handle');
 $m = new CAPM(4.7, 9.2);
 equity($m, 1.08, 5);
+try {
 equity(5, 1.08);
+}
+catch(Error $e) {
+    echo "Fatal error: ", $e->getMessage(),  " on line ", $e->getLine(), "\n";
+}
+try{
 $m->load("string");
+}
+catch(Error $e) {
+    echo "Fatal error: ", $e->getMessage(),  " on line ", $e->getLine(), "\n";
+}
 equity($m, 1.5);
 $m->load( array(3.6, 7.1) );
 equity($m, 1.5);
 
 --EXPECTREGEX--
 Cost of equity = 14\.56%
-error #4096: Argument 1 passed to equity\(\) must be an instance of CAPM, integer given, called in .* on line 23 and defined on line 15
-error #4096: Argument 1 passed to CAPM::load\(\) must be an array, .* given, called in .* on line 24 and defined on line 11
-Cost of equity = 0%
+Fatal error\: Argument 1 passed to equity\(\) must be an instance of CAPM, integer given, called in .* on line 24 on line 15
+Fatal error\: Argument 1 passed to CAPM\:\:load\(\) must be of the type array, string given, called in .* on line 30 on line 11
+Cost of equity = 11\.45%
 Cost of equity = 8\.85%
