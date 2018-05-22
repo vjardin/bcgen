@@ -53,5 +53,5 @@ x
 float\(5\.5\)
 \$this is defined \([Aa]\)
 \$this is not defined\.
-\$this is defined \([Bb]\)
+\$this is not defined\.
 \$this is not defined\.
