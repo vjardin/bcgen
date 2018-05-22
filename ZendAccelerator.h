@@ -127,7 +127,7 @@ typedef struct _zend_accel_globals {
 	HashTable               bind_hash; /* prototype and zval lookup table */
 	zend_accel_directives   accel_directives;
 	int                     auto_globals_mask;
-	char                    system_id[32];
+	unsigned char           system_id[32];
     char                   *outfilename;
 	HashTable               xlat_table;
 	/* preallocated memory block to save current script */

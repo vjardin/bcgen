@@ -180,7 +180,6 @@ static ZEND_FUNCTION(bcgen_compile_file)
     ZCG(outfilename) = emalloc(outscript_name_len + 1);
     memcpy(ZCG(outfilename), outscript_name, outscript_name_len);
     ZCG(outfilename)[outscript_name_len] = '\0';
-	zend_error(E_WARNING, ACCELERATOR_PRODUCT_NAME " len is %d, %d, %s", outscript_name_len, strlen (ZCG(outfilename)), ZCG(outfilename));
     
 	handle.filename = script_name;
 	handle.free_filename = 0;

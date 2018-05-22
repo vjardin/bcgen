@@ -37,7 +37,6 @@
 #include "zend_ini.h"
 #include "zend_virtual_cwd.h"
 #include "zend_accelerator_util_funcs.h"
-#include "ext/standard/md5.h"
 
 #include "zend_file_cache.h"
 
@@ -92,7 +91,6 @@ static zend_op_array *(*accelerator_orig_compile_file)(zend_file_handle *file_ha
 
 static void accel_gen_system_id(void);
 
-static void accel_gen_system_id(void);
 static int accel_post_startup(void);
 
 static inline int is_stream_path(const char *filename)
@@ -512,28 +510,22 @@ static void accel_globals_dtor(zend_accel_globals *accel_globals)
 	}
 }
 
-#define ZEND_BIN_ID "BIN_" ZEND_TOSTR(SIZEOF_CHAR) ZEND_TOSTR(SIZEOF_INT) ZEND_TOSTR(SIZEOF_LONG) ZEND_TOSTR(SIZEOF_SIZE_T) ZEND_TOSTR(SIZEOF_ZEND_LONG) ZEND_TOSTR(ZEND_MM_ALIGNMENT)
-
 static void accel_gen_system_id(void)
 {
-    PHP_MD5_CTX context;
-    unsigned char digest[16], c;
-    char *md5str = ZCG(system_id);
+    unsigned char *sysid = ZCG(system_id);
     int i;
 
-    PHP_MD5Init(&context);
-    PHP_MD5Update(&context, PHP_VERSION, sizeof(PHP_VERSION)-1);
-    PHP_MD5Update(&context, ZEND_EXTENSION_BUILD_ID, sizeof(ZEND_EXTENSION_BUILD_ID)-1);
-    PHP_MD5Update(&context, ZEND_BIN_ID, sizeof(ZEND_BIN_ID)-1);
-    PHP_MD5Final(digest, &context);
-    for (i = 0; i < 16; i++) {
-        c = digest[i] >> 4;
-        c = (c <= 9) ? c + '0' : c - 10 + 'a';
-        md5str[i * 2] = c;
-        c = digest[i] &  0x0f;
-        c = (c <= 9) ? c + '0' : c - 10 + 'a';
-        md5str[(i * 2) + 1] = c;
-    }
+	memset(sysid, 0, sizeof(ZCG(system_id)));
+	
+	sysid[0] = PHP_MAJOR_VERSION;
+	sysid[1] = PHP_MINOR_VERSION;
+	sysid[2] = PHP_RELEASE_VERSION;
+	sysid[3] = sizeof(char);
+	sysid[4] = sizeof(int);
+	sysid[5] = sizeof(long);
+	sysid[6] = sizeof(size_t);
+	sysid[7] = sizeof(zend_long);
+	sysid[8] = ZEND_MM_ALIGNMENT;
 }
 
 #ifdef HAVE_HUGE_CODE_PAGES

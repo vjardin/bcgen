@@ -23,9 +23,6 @@
 #include "zend_interfaces.h"
 
 #include "php.h"
-#ifdef ZEND_WIN32
-#include "ext/standard/md5.h"
-#endif
 
 #include "ZendAccelerator.h"
 #include "zend_file_cache.h"
@@ -102,12 +99,12 @@ static const uint32_t uninitialized_bucket[-HT_MIN_MASK] =
 	{HT_INVALID_IDX, HT_INVALID_IDX};
 
 typedef struct _zend_file_cache_metainfo {
-	char         magic[8];
-	char         system_id[32];
-	size_t       mem_size;
-	size_t       str_size;
-	size_t       script_offset;
-	uint32_t     checksum;
+	char          magic[8];
+	unsigned char system_id[32];
+	size_t        mem_size;
+	size_t        str_size;
+	size_t        script_offset;
+	uint32_t      checksum;
 } zend_file_cache_metainfo;
 
 typedef void (*serialize_callback_t)(zval                     *zv,
@@ -653,7 +650,6 @@ int zend_file_cache_script_store(zend_persistent_script *script)
 #endif
 	void *mem, *buf;
 
-	zend_error(E_WARNING, ACCELERATOR_PRODUCT_NAME " len is %d, %s", strlen (ZCG(outfilename)), ZCG(outfilename));
     zend_accel_error(ACCEL_LOG_WARNING, "writing to file '%s'\n", ZCG(outfilename));
 
 #ifndef ZEND_WIN32
@@ -1211,10 +1207,8 @@ zend_persistent_script *zend_file_cache_script_load(zend_file_handle *file_handl
 		return NULL;
 	}
 	if (memcmp(info.system_id, ZCG(system_id), 32) != 0) {
-		zend_accel_error(ACCEL_LOG_DEBUG, "bcgen '%s' is not a bcgen file (wrong \"system_id\")\n", filename);
-		close(fd);
-		efree(filename);
-		return NULL;
+		zend_accel_error(ACCEL_LOG_WARNING	, "bcgen: '%s' was compiled with different system id\n"
+		                                      "Things might run unstable...\n", filename);
 	}
 
 	checkpoint = zend_arena_checkpoint(CG(arena));
