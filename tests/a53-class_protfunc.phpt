@@ -19,12 +19,17 @@ include(dirname(__FILE__)."/a50-class.phb");
 
 $obj = new SubClass();
 $obj->show();              /* a b c */
+try{
 $obj->hidden(15);          /* error */
 $obj->show();
+}
+catch(Error $e) {
+    echo "\nFatal error: ", $e->getMessage(), " on line ", $e->getLine(), "\n";
+}
 --EXPECTREGEX--
 a=\[a\] b=\[b\] c=\[c\]
 
-Fatal error: Call to protected method SubClass::hidden\(\) from context .* on line 6
+Fatal error: Call to protected method SubClass::hidden\(\) from context .* on line 7
 --CLEAN--
 <?php
 unlink(dirname(__FILE__).'/a53-class_protfunc.phb');
