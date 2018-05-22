@@ -23,13 +23,26 @@ class Foo {
   }
 }
 
+
 echo "var=", Foo::$my_static, "\n";
+try {
 Foo::aStatMethod();
+}
+catch(Error $e) {
+    echo "\nFatal error: ", $e->getMessage(), " on line ", $e->getLine(), "\n";
+}
 $obj = new Foo();
 var_dump($obj->my_static);
+try {
 $obj->aStatMethod();
+}
+catch(Error $e) {
+    echo "\nFatal error: ", $e->getMessage(),  " on line ", $e->getLine(), "\n";
+}
 --EXPECT--
 var=foo
-aStatMethod this:NULL
+aStatMethod this:
+Fatal error: Using $this when not in object context on line 8
 NULL
-aStatMethod this:NULL
+aStatMethod this:
+Fatal error: Using $this when not in object context on line 8
