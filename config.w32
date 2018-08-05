@@ -10,7 +10,7 @@ if (PHP_BCGEN != "no") {
 		AC_DEFINE('HAVE_BCGEN_FILE_CACHE', 1, 'Define to enable file based caching (experimental)');
 	}
 
-	ZEND_EXTENSION('bcgen', "\
+	EXTENSION('bcgen', "\
 		ZendAccelerator.c \
 		zend_accelerator_debug.c \
 		zend_accelerator_module.c \
