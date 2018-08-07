@@ -4,7 +4,7 @@ ARG_ENABLE("bcgen", "whether to enable Zend bcgen support", "yes");
 
 if (PHP_BCGEN != "no") {
 
-	ZEND_EXTENSION('bcgen', "\
+	EXTENSION('bcgen', "\
 		ZendAccelerator.c \
 		zend_accelerator_debug.c \
 		zend_accelerator_module.c \
