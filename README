@@ -9,8 +9,11 @@ BCgen is similiar to bcompiler, but not a direct replacement.
 Compatibility
 -------------
 
-This version of Zend OPcache is compatible with PHP 5.2.*, 5.3.*, 5.4.*
-and PHP-5.5 development branch.  PHP 5.2 support may be removed in the future.
+Only PHP-7.2 is supported for now. There are currently no plans to support earlier PHP versions as well.
+Supporting different PHP versions with their different internal data structures is really a hassle.
+
+So if you distribute your BCGen compiled PHP files to protect you code, make sure that the user uses the correct PHP version that matches the BCgen version.
+In times of docker et al it should be a problem to achive this.
 
 Quick Install
 -------------
