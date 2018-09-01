@@ -12,8 +12,8 @@ Compatibility
 Only PHP-7.2 is supported for now. There are currently no plans to support earlier PHP versions as well.
 Supporting different PHP versions with their different internal data structures is really a hassle.
 
-So if you distribute your BCGen compiled PHP files to protect you code, make sure that the user uses the correct PHP version that matches the BCgen version.
-In times of docker et al it should be a problem to achive this.
+So if you distribute your BCGen compiled PHP files to protect your code, make sure that the user uses the correct PHP version that matches the BCgen version.
+In times of docker et al it should not be a problem to achieve this.
 
 Quick Install
 -------------
